@@ -12,6 +12,38 @@ Read [`problem_statement.md`](./problem_statement.md) for the complete challenge
 
 ---
 
+## Environment and Setup
+
+- **Python Version**: Python 3.13
+- **Dependency Installation**:
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+## Running the Solution
+
+1. **Full Dataset Audit (518 Cases)**:
+   ```bash
+   python code/main.py --input dataset/deletion_requests.csv --output output.csv --expected-count 518
+   ```
+
+2. **Output Structural Validation**:
+   ```bash
+   python code/validate.py output.csv --expected-count 518
+   ```
+
+3. **Sample Benchmark Evaluation**:
+   ```bash
+   python code/evaluation/main.py --pred code/.cache/sample_pred_dataflow.csv --truth dataset/sample_output.csv
+   ```
+
+## Evaluation Reports
+
+- [Evaluation Report](code/evaluation/evaluation_report.md)
+- [Usage Report](code/evaluation/usage_report.md)
+
+---
+
 ## Quick Start
 
 Clone the repository and move into the project directory:
