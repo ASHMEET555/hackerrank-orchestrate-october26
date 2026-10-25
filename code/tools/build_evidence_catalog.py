@@ -1,0 +1,192 @@
+"""build_evidence_catalog.py - read-only builder for code/notes/EVIDENCE_CATALOG.md.
+
+Phase 1 analysis tool (NOT part of the engine). One row per manifest file_id.
+Usage (from repo root):  python code/tools/build_evidence_catalog.py
+No interpretation of record contents beyond verbatim metadata (table names,
+file-header comments, keys) - interpretation happens in Phase 4+.
+"""
+from __future__ import annotations
+
+import csv
+import json
+import re
+import sqlite3
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+DS = ROOT / "dataset"
+OUT = ROOT / "code" / "notes" / "EVIDENCE_CATALOG.md"
+
+PARSER = {
+    ".json": "stdlib json (structured parse; keep key paths as provenance)",
+    ".log": "line-oriented reader with documented line grammar (keep line numbers)",
+    ".txt": "plain text reader",
+    ".sql": "execute into per-file in-memory SQLite; introspect sqlite_master/PRAGMA",
+    ".png": "OCR chain: tesseract/pytesseract (MISSING in env) -> fallback: visual read by agent; PIL for dimensions",
+    ".pdf": "PyMuPDF text layer first; pdftotext cross-check; OCR fallback (tesseract MISSING)",
+}
+
+
+def load_manifest():
+    with open(DS / "evidence_files.csv", encoding="utf-8-sig", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def sample_citations():
+    cites = defaultdict(list)
+    with open(DS / "sample_output.csv", encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh):
+            for step in json.loads(row["steps_json"]):
+                ev = step["evidence_id"]
+                if ev:
+                    cites[ev].append(f"{row['case_id']}({step['operation']})")
+    return cites
+
+
+def sql_header(path: Path):
+    """Read verbatim `-- key: value` header comments (facts, not interpretation)."""
+    meta = {}
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for _ in range(20):
+            line = fh.readline()
+            if not line:
+                break
+            m = re.match(r"--\s*([^:]+):\s*(.+)", line.strip())
+            if m:
+                meta[m.group(1).strip()] = m.group(2).strip()
+            elif not line.startswith("--"):
+                break
+    return meta
+
+
+def sql_tables(path: Path):
+    """Load snapshot into an in-memory SQLite db; return table names."""
+    db = sqlite3.connect(":memory:")
+    try:
+        db.executescript(path.read_text(encoding="utf-8", errors="replace"))
+        rows = db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' "
+            "ORDER BY name").fetchall()
+        return [r[0] for r in rows]
+    except Exception as exc:  # keep the catalog usable even if a snapshot fails
+        return [f"<load error: {exc}>"]
+    finally:
+        db.close()
+
+
+def content_meta(fmt: str, path: Path):
+    """Return (metadata string, extra flag) extracted verbatim from file content."""
+    try:
+        if fmt == ".sql":
+            hdr = sql_header(path)
+            tables = sql_tables(path)
+            topo = hdr.get("Database topology", "n/a")
+            cap = hdr.get("Captured at", "n/a")
+            return (f"topology(header)={topo}; header captured_at={cap}; "
+                    f"tables({len(tables)}): {', '.join(tables)}", cap)
+        if fmt == ".json":
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return (f"top-level keys: {', '.join(list(data)[:12])}"
+                        f"{' ...' if len(data) > 12 else ''}", "")
+            return (f"top-level JSON array, {len(data)} items", "")
+        if fmt == ".log":
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+            return (f"{len(lines)} lines", "")
+        if fmt == ".txt":
+            txt = path.read_text(encoding="utf-8", errors="replace")
+            return (f"{len(txt)} chars", "")
+        if fmt == ".png":
+            from PIL import Image
+            with Image.open(path) as im:
+                return (f"{im.size[0]}x{im.size[1]} px, mode={im.mode}", "")
+        if fmt == ".pdf":
+            import fitz
+            with fitz.open(path) as doc:
+                pages = doc.page_count
+                txt = sum(len(p.get_text()) for p in doc)
+            return (f"{pages} pages; text-layer chars={txt}", "")
+    except Exception as exc:
+        return (f"<meta error: {exc}>", "")
+    return ("", "")
+
+
+def main():
+    man = load_manifest()
+    cites = sample_citations()
+
+    # disk vs manifest both directions
+    disk = {p.relative_to(DS).as_posix(): p for p in (DS / "evidence").rglob("*") if p.is_file()}
+    mpaths = {m["file_path"] for m in man}
+    unmapped = sorted(set(disk) - mpaths)
+    missing = sorted(mpaths - set(disk))
+
+    L = []
+    A = L.append
+    A("# EVIDENCE_CATALOG.md - one row per manifest file_id (Phase 1, read-only)\n")
+    A("Generated by `code/tools/build_evidence_catalog.py` (documented in `code/notes/CONTEXT.md` #6).")
+    A("`captured_at` = manifest value; SQL files also carry a verbatim `-- Captured at:` header")
+    A("(compared in the `content captured_at` column). `system/topology` for SQL is the verbatim")
+    A("header value only - **no interpretation**; table lists are raw `sqlite_master` names.")
+    A("`sample cases` = citations found in `dataset/sample_output.csv` (32 cases only; the other")
+    A("486 cases cannot cite anything until the engine runs). `planned parser` = Phase 4 plan.\n")
+    A(f"Manifest rows: **{len(man)}**; files on disk: **{len(disk)}**; "
+      f"on-disk-not-in-manifest: **{len(unmapped)}** {unmapped}; manifest-without-file: **{len(missing)}** {missing}.\n")
+
+    # summary counts by format
+    ext_count = defaultdict(int)
+    for m in man:
+        ext_count[Path(m["file_path"]).suffix.lower()] += 1
+    A("Format counts (manifest): " +
+      ", ".join(f"{k.lstrip('.').upper()} {v}" for k, v in sorted(ext_count.items())) + ".\n")
+
+    A("## Catalog\n")
+    A("| file_id | path (under `dataset/`) | format | size | captured_at (manifest) | "
+      "content captured_at | origin / SQL topology (verbatim) | content metadata | "
+      "sample cases citing it | planned parser |")
+    A("|---|---|---|---:|---|---|---|---|---|---|")
+
+    cap_mismatch = []
+    for m in sorted(man, key=lambda x: x["file_id"]):
+        rel = m["file_path"]
+        p = disk.get(rel)
+        fmt = Path(rel).suffix.lower()
+        size = p.stat().st_size if p else "MISSING"
+        meta, cap_content = content_meta(fmt, p) if p else ("MISSING", "")
+        origin = m["origin"]
+        if fmt == ".sql" and "topology(header)=" in meta:
+            topo = re.search(r"topology\(header\)=([^;]+)", meta).group(1).strip()
+            syscol = f"{origin} / {topo}"
+        else:
+            syscol = origin
+        cap_cell = cap_content if cap_content else "n/a (no header field)"
+        if cap_content and cap_content != "n/a" and cap_content != m["captured_at"]:
+            cap_mismatch.append((m["file_id"], m["captured_at"], cap_content))
+        cited = ", ".join(cites.get(m["file_id"], [])) or "-"
+        A(f"| `{m['file_id']}` | `{rel}` | {fmt.lstrip('.').upper()} | {size} | {m['captured_at']} | "
+          f"{cap_cell} | {syscol} | {meta} | {cited} | {PARSER.get(fmt, 'text reader')} |")
+
+    A("")
+    A("## Notes")
+    A(f"- Manifest `captured_at` vs in-file SQL header `Captured at` mismatches: {len(cap_mismatch)} "
+      f"{cap_mismatch}")
+    A(f"- Evidence files cited by at least one sample case: {len(cites)} of {len(man)} "
+      f"-> {sorted(cites)}")
+    uncited = sorted({m['file_id'] for m in man} - set(cites))
+    A(f"- Evidence files cited by no sample case: {len(uncited)} (listed in `DATA_PROFILE.md` #11; "
+      "relevance not decided in Phase 1).")
+    A("- `system_activity.csv` contains no evidence reference (checked in `DATA_PROFILE.md` #6),")
+    A("  so activity_id citation support comes from `activity_id` values themselves, not from joins.")
+    A("- PNG/PDF OCR availability is blocked in this environment (tesseract binary missing, see")
+    A("  `CONTEXT.md` blocker B1); planned parser column records the fallback chain.")
+
+    text = "\n".join(L) + "\n"
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(text, encoding="utf-8", newline="\n")
+    print(f"wrote {OUT} ({len(text)} bytes)")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

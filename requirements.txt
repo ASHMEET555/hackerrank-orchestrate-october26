@@ -1,0 +1,11 @@
+# Verified importable in this environment (Python 3.13.2, pip 25.1.1).
+# Only libraries the solution actually needs are listed; stdlib (csv, json,
+# sqlite3, re, datetime, pathlib) covers everything else.
+PyMuPDF==1.26.7      # PDF text extraction (import name: fitz)
+Pillow==11.2.1       # image loading / preprocessing for OCR + visual checks
+pytest==8.3.4        # unit tests
+
+# NOT installed - blockers, owner approval required:
+# pytesseract==<none>  # pure-Python wrapper; also needs the tesseract system binary
+#                       # (tesseract is NOT on PATH on this machine)
+# pandas==2.2.3        # installed but not required; profiling uses stdlib csv

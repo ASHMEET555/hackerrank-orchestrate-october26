@@ -2,8 +2,14 @@
 .venv/
 venv/
 __pycache__/
+*.pyc
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 code.zip
+code/.cache/
+node_modules/
+.DS_Store
+# dataset/ stays in the working tree; excluded from packaging/commits going forward
+dataset/
