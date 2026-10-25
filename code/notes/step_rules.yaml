@@ -1,0 +1,84 @@
+# step_rules.yaml — Declarative rules mapping states and categories to findings, remediations, and verifications
+# Derived from AGENTS.md §6.4-§6.5, CONTRACT_SPEC.md, and dataset/sample_output.csv.
+
+phases:
+  - FINDING
+  - REMEDIATION
+  - VERIFICATION
+
+# Mapping from violation/observation type to Finding operation & expected state
+findings:
+  remaining_record:
+    operation: REPORT_REMAINING_RECORD
+    state: PRESENT
+    trigger: Record exists where required action is DELETE, or undeleted copy found.
+  exposed_pii:
+    operation: REPORT_EXPOSED_PII
+    state: PRESENT
+    trigger: Record exists where required action is REDACT or ANONYMIZE, but identifying attributes remain unredacted/unanonymized.
+  active_data_flow:
+    operation: REPORT_ACTIVE_DATA_FLOW
+    state: ACTIVE
+    trigger: Sync connector, stream, or bridge is enabled or active for the subject.
+  restore_risk:
+    operation: REPORT_RESTORE_RISK
+    state: ACTIVE
+    trigger: Backup or archive entry allows restore (restore_allowed == true or eligible without deletion_block).
+
+# Mapping from required action to Remediation operation & target state
+remediations:
+  DELETE:
+    operation: DELETE_RECORD
+    state: ABSENT
+    verification_operation: VERIFY_RECORD_ABSENT
+    verification_state: ABSENT
+  REDACT:
+    operation: REDACT_RECORD
+    state: REDACTED
+    verification_operation: VERIFY_RECORD_REDACTED
+    verification_state: REDACTED
+  ANONYMIZE:
+    operation: ANONYMIZE_RECORD
+    state: ANONYMIZED
+    verification_operation: VERIFY_RECORD_ANONYMIZED
+    verification_state: ANONYMIZED
+  DISABLE_DATA_FLOW:
+    operation: DISABLE_DATA_FLOW
+    state: DISABLED
+    verification_operation: VERIFY_DATA_FLOW_DISABLED
+    verification_state: DISABLED
+  BLOCK_RESTORE:
+    operation: BLOCK_RESTORE
+    state: BLOCKED
+    verification_operation: VERIFY_RESTORE_BLOCKED
+    verification_state: BLOCKED
+
+# Mapping for RETAIN records (policy-required retained data)
+retained_verifications:
+  RETAIN:
+    operation: VERIFY_RECORD_PRESENT
+    state: PRESENT
+
+# Step sorting & precedence contract:
+# 1. Phase: FINDING (1), REMEDIATION (2), VERIFICATION (3)
+# 2. Within phase: Operation rank (e.g. DISABLE_DATA_FLOW / BLOCK_RESTORE before DELETE_RECORD / REDACT / ANONYMIZE)
+# 3. Within operation: system_id ASCII ascending
+# 4. Within system_id: resource_id ASCII ascending
+sorting_order:
+  phases:
+    FINDING: 1
+    REMEDIATION: 2
+    VERIFICATION: 3
+  remediation_ops:
+    DISABLE_DATA_FLOW: 1
+    BLOCK_RESTORE: 2
+    DELETE_RECORD: 3
+    REDACT_RECORD: 4
+    ANONYMIZE_RECORD: 5
+  verification_ops:
+    VERIFY_RECORD_ABSENT: 1
+    VERIFY_RECORD_PRESENT: 2
+    VERIFY_RECORD_REDACTED: 3
+    VERIFY_RECORD_ANONYMIZED: 4
+    VERIFY_DATA_FLOW_DISABLED: 5
+    VERIFY_RESTORE_BLOCKED: 6
