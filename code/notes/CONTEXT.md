@@ -130,3 +130,13 @@ No engine, classifier, or output-writing code exists from this session. All data
 
 ### Next
 Phase 2 (spec-from-samples) blocked until owner gives the go-ahead.
+
+## 8. Phase 0/1 commit and push record (2026-10-25)
+
+- Commit: `4ba7dfc3e793d11f298154d596cb6506667fdf14` - `Phase 0-1: contract spec, data profile, evidence catalog`
+- Author: ASHMEET555 <sandhuashmeet40@gmail.com> (pre-existing git config, verified non-empty)
+- Contents: 10 files, 1646 insertions (.gitignore, GHOST_DATA_MASTER_PLAN.md, requirements.txt, code/notes/{CONTEXT,CONTRACT_SPEC,DATA_PROFILE,DECISIONS,EVIDENCE_CATALOG}.md, code/tools/{profile_dataset,build_evidence_catalog}.py)
+- Excluded by owner instruction: `dataset/` (tracked, unmodified), `log.txt` (untracked artifact), 7 pre-existing untracked code modules, caches/venvs
+- Push: `git push -u origin build/main-impl` - **success, new remote branch, no force used**
+- Remote verification: `git ls-remote --heads origin build/main-impl` -> `4ba7dfc3e793d11f298154d596cb6506667fdf14 refs/heads/build/main-impl`
+- `log.txt` commit hash + push result appended there too; left uncommitted (AGENTS.md chat_transcript artifact, never tracked)
