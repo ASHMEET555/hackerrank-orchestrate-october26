@@ -72,6 +72,50 @@ python3 code/main.py
 The blank template at `dataset/output.csv` is provided as a reference. Your final generated file for submission must be the root-level `output.csv`.
 
 
+
+## Architecture and Implementation (Phases 1 to 9)
+
+The deletion-audit system is structured according to the 9-phase master plan:
+
+1. **Phase 1: Contract Extraction and Profiling**
+   - Formalized dataset schemas, entity relationships, and temporal bounds.
+   - Profiled in [code/notes/DATA_PROFILE.md](code/notes/DATA_PROFILE.md) and [code/notes/CONTRACT_SPEC.md](code/notes/CONTRACT_SPEC.md).
+
+2. **Phase 2: Domain Modeling and Rules Catalog**
+   - Established domain data structures, enums (DeletionStatus, Phase, Operation), and rule schemas in [code/base.py](code/base.py).
+   - Indexed deletion policy actions and categories from dataset/deletion_rules.csv.
+
+3. **Phase 3: Identity & Intent Resolution**
+   - Built temporal identifier resolution in [code/identity.py](code/identity.py), resolving current snapshots and historical changes from user_audit_log.csv up to udit_at.
+   - Multi-lingual request authorization classifier in [code/intent.py](code/intent.py) mapping non-deletion requests to NOT_APPLICABLE.
+
+4. **Phase 4: Evidence Readers & Indexing**
+   - Comprehensive evidence readers in code/readers/: [pdf_reader.py](code/readers/pdf_reader.py), [image_reader.py](code/readers/image_reader.py), [	ext_reader.py](code/readers/text_reader.py), and [sql_reader.py](code/readers/sql_reader.py).
+   - Unified evidence cataloging in [code/evidence_index.py](code/evidence_index.py).
+
+5. **Phase 5: SQL Audit Engine**
+   - In-memory SQLite replication audit in [code/sql_audit.py](code/sql_audit.py) for primary, regional, and reporting database snapshots to detect replication drift.
+
+6. **Phase 6: State Reconstruction & Deletion Decider**
+   - Reconstructed real resource states at udit_at via [code/state_reconstructor.py](code/state_reconstructor.py).
+   - Policy application in [code/rules_engine.py](code/rules_engine.py) adhering to tombstone rules and legal hold policies.
+   - Deterministic subject-resource mapping in [code/linker.py](code/linker.py) linking via exact identifiers (user_id, email, phone, email_hash).
+   - Final deletion verdict logic in [code/status_decider.py](code/status_decider.py).
+
+7. **Phase 7: Step Planning & Pipeline CLI**
+   - Ordered step generator in [code/step_builder.py](code/step_builder.py), ordering FINDING -> REMEDIATION -> VERIFICATION.
+   - Pipeline CLI orchestrator in [code/main.py](code/main.py) with batch processing, progress reporting, and deterministic CSV generation.
+
+8. **Phase 8: Generalization & Validation**
+   - Full 518-case processing verified via [code/validate.py](code/validate.py) with 0 errors.
+   - Strict structural assertions enforced in [code/tools/check_output_structure.py](code/tools/check_output_structure.py) (518 rows, string sort, JSON arrays, 0 UNKNOWN_CLASSIFICATION).
+
+9. **Phase 9: Evaluation & Packaging**
+   - Standardized evaluation reports: [code/evaluation/evaluation_report.md](code/evaluation/evaluation_report.md) and [code/evaluation/usage_report.md](code/evaluation/usage_report.md).
+   - Clean packaging of runnable code in code.zip adhering to challenge specifications.
+
+---
+
 ## Dataset
 
 All participant-facing files are in `dataset/`:
