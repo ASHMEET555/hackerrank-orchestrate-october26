@@ -61,7 +61,7 @@ retained_verifications:
 
 # Step sorting & precedence contract:
 # 1. Phase: FINDING (1), REMEDIATION (2), VERIFICATION (3)
-# 2. Within phase: Operation rank (e.g. DISABLE_DATA_FLOW / BLOCK_RESTORE before DELETE_RECORD / REDACT / ANONYMIZE)
+# 2. Within phase: Operation rank
 # 3. Within operation: system_id ASCII ascending
 # 4. Within system_id: resource_id ASCII ascending
 sorting_order:
@@ -82,3 +82,111 @@ sorting_order:
     VERIFY_RECORD_ANONYMIZED: 4
     VERIFY_DATA_FLOW_DISABLED: 5
     VERIFY_RESTORE_BLOCKED: 6
+
+# G2.2 Rule Grounding: Classification signals and proving evidence locator for rule_01 to rule_15
+rule_grounding:
+  rule_01:
+    category: USER_PROFILE
+    action: DELETE
+    condition: Always
+    signals: "system_id == 'account_service' or table in ('customer_profiles', 'customer_profiles_primary', 'customer_profiles_failover_replica') or json key '$.service_exports.account_service'"
+    proving_locator: "evidence_54 table customer_profiles_failover_replica; evidence_92 $.service_exports.account_service"
+    status: GROUNDED
+  rule_02:
+    category: SECONDARY_IDENTIFIER
+    action: DELETE
+    condition: Always
+    signals: "table in ('secondary_identifiers', 'user_aliases') or column in ('alias_email', 'secondary_phone')"
+    proving_locator: "UNGROUNDED (no dedicated secondary identifier table in dataset evidence; aliases tracked via user_audit_log)"
+    status: UNGROUNDED
+  rule_03:
+    category: SEARCH_INDEX_ENTRY
+    action: DELETE
+    condition: Always
+    signals: "system_id == 'search_service' or table in ('customer_search_documents', 'search_documents_primary') or index in ('customer_directory_v3')"
+    proving_locator: "evidence_57 table search_documents_primary; evidence_94 line 8; evidence_92 $.service_exports.search_service"
+    status: GROUNDED
+  rule_04:
+    category: CACHE_ENTRY
+    action: DELETE
+    condition: Always
+    signals: "system_id in ('cache_service', 'redis') or resource_id startswith 'cache_'"
+    proving_locator: "UNGROUNDED (no cache service evidence present in 94 dataset files)"
+    status: UNGROUNDED
+  rule_05:
+    category: SUPPORT_MESSAGE
+    action: REDACT
+    condition: "Conversation contains shared customer, agent, or order context that must be retained"
+    signals: "system_id == 'support_platform' and (table == 'support_records' or json path '$.service_exports.support_platform.tickets' or log event in ('message_pii_scan', 'support_ticket_read_completed'))"
+    proving_locator: "evidence_01 line 15; evidence_92 $.service_exports.support_platform.tickets; evidence_94 line 10"
+    status: GROUNDED
+  rule_06:
+    category: SUPPORT_ATTACHMENT
+    action: DELETE
+    condition: "Attachment belongs only to the deletion subject"
+    signals: "system_id == 'support_platform' and (file extension == '.pdf' or document heading 'delivery_correction_attachment' or log token 'SUPPORT_ATTACHMENT' or replica check 'marker_found=false')"
+    proving_locator: "evidence_58 page 1; evidence_61 line 6; evidence_03 line 43"
+    status: GROUNDED
+  rule_07:
+    category: ANALYTICS_PROFILE
+    action: ANONYMIZE
+    condition: "Record is still attributable to a user"
+    signals: "system_id == 'analytics_platform' and (table == 'customer_analytics_profiles' or json path '$.service_exports.analytics_platform.profiles' or text token 'ANALYTICS_PROFILE') and audience_cohort / general_shopper attributes present"
+    proving_locator: "evidence_93 table customer_analytics_profiles; evidence_92 $.service_exports.analytics_platform.profiles; evidence_56 $.records"
+    status: GROUNDED
+  rule_08:
+    category: PRODUCT_TELEMETRY
+    action: ANONYMIZE
+    condition: "Record is still attributable to a user"
+    signals: "log token 'telemetry_flushed' in lambda extension logs"
+    proving_locator: "UNGROUNDED (cloud_runtime_export logs contain aggregate lambda telemetry with no attributable user identifier)"
+    status: UNGROUNDED
+  rule_09:
+    category: USER_EXPORT
+    action: DELETE
+    condition: Always
+    signals: "system_id == 'export_service' or table == 'customer_exports' or json path '$.service_exports.export_service.exports' or filename *.zip"
+    proving_locator: "evidence_59 $.records; evidence_92 $.service_exports.export_service.exports; evidence_93 table customer_exports"
+    status: GROUNDED
+  rule_10:
+    category: MARKETING_PROFILE
+    action: DELETE
+    condition: Always
+    signals: "system_id == 'analytics_platform' and event == 'contact_lookup_completed' with field email_opt_in"
+    proving_locator: "evidence_01 line 92"
+    status: GROUNDED
+  rule_11:
+    category: EMAIL_DELIVERY_LOG
+    action: REDACT
+    condition: "Log contains a user email address"
+    signals: "system_id in ('email_service', 'smtp_service') or table == 'email_delivery_logs'"
+    proving_locator: "UNGROUNDED (no dedicated email delivery log evidence file present in dataset)"
+    status: UNGROUNDED
+  rule_12:
+    category: SECURITY_AUDIT_LOG
+    action: RETAIN
+    condition: "Record is within the supplied retention period"
+    signals: "system_id == 'security_service' or table == 'security_audit_records' or json path '$.service_exports.security_service.audit_records' or column retention_until"
+    proving_locator: "evidence_01 line 33; evidence_92 $.service_exports.security_service.audit_records; evidence_93 table security_audit_records"
+    status: GROUNDED
+  rule_13:
+    category: LEGAL_HOLD_RECORD
+    action: RETAIN
+    condition: "A supplied legal hold is active"
+    signals: "table in ('legal_holds', 'compliance_holds') or column hold_status == 'ACTIVE'"
+    proving_locator: "UNGROUNDED (no legal hold tables or active legal holds in dataset evidence)"
+    status: UNGROUNDED
+  rule_14:
+    category: BACKUP_ARCHIVE
+    action: RETAIN
+    condition: "Restore access can be blocked"
+    signals: "system_id == 'backup_service' or table == 'backup_restore_entries' or json path '$.service_exports.backup_service.restore_entries' or column restore_allowed"
+    proving_locator: "evidence_01 line 53; evidence_93 table backup_restore_entries; evidence_92 $.service_exports.backup_service.restore_entries"
+    status: GROUNDED
+  rule_15:
+    category: ACCOUNT_TOMBSTONE
+    action: REDACT
+    condition: "Account is deleted and only a stable internal user_id is needed to preserve references to retained records"
+    signals: "system_id == 'identity_service' or resource_id startswith 'tombstone_' or (account_status == 'DELETED' and subject_reference is present)"
+    proving_locator: "evidence_51 JSON $.snapshots[1].records"
+    status: GROUNDED
