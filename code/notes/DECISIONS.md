@@ -16,6 +16,11 @@ another source is named.
 | A7/V7 | SECURITY_AUDIT_LOG outside retention => RETAIN lapses => **DELETE**. | "Record is within the supplied retention period" (deletion_rules.csv rule_12) | owner approved | 2026-10-25 |
 | B1/B2 | **No installs.** PNG OCR stays a deferred blocker. Phase 4 reads the 11 PNGs visually for the samples and records every visual read in `EVIDENCE_CATALOG.md` with its source file. | "Evidence may be stored as PDFs, images, logs, JSON" (problem_statement.md:47) | owner approved | 2026-10-25 |
 | B6 | No commit until the gate reply was processed and recorded; commit Phase 0/1 artifacts, keep `log.txt` uncommitted (AGENTS.md artifact), keep the 7 pre-existing untracked modules unstaged. | "One commit per completed phase" (GHOST_DATA_MASTER_PLAN.md §9) | owner approved | 2026-10-25 |
+| D1 | rule_13: `retained_until > audit_at` counts as active legal hold (`RETAIN` / `VERIFY_RECORD_PRESENT`). | "Record is within the supplied retention period" (deletion_rules.csv rule_13) | default chosen, owner override possible | 2026-10-25 |
+| D2 | Support attachment via shared name only: not linked to subject without direct identifier (`email`/`phone`/`user_id`). | "Attachment belongs only to the deletion subject" (deletion_rules.csv rule_06) | default chosen, owner override possible | 2026-10-25 |
+| D3 | Trace-correlated log lines: not cited as evidence (cannot cite ungrounded trace completion lines lacking direct subject link). | "Determine resource state from the available evidence" (AGENTS.md §6.1, §6.6) | default chosen, owner override possible | 2026-10-25 |
+| D4 | Absence-by-omission: not used as proof of deletion (omission from replica/snapshot bundle alone does not prove verified absence). | "Verification must cover the required final state for each remediated record or process" (AGENTS.md §6.5) | default chosen, owner override possible | 2026-10-25 |
+| D5 | `unknown_service` resources: no automated deletion verdict; logged to `code/notes/failures.md` as `UNKNOWN_CLASSIFICATION`. | "Any ungrounded category must not be used by the engine" (GHOST_DATA_MASTER_PLAN.md §6) | default chosen, owner override possible | 2026-10-25 |
 
 ## Low-confidence intent log (append during Phase 5+)
 
