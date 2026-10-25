@@ -118,3 +118,24 @@ Format counts (manifest): JSON 28, LOG 26, PDF 4, PNG 11, SQL 24, TXT 1.
   so activity_id citation support comes from `activity_id` values themselves, not from joins.
 - PNG/PDF OCR availability is blocked in this environment (tesseract binary missing, see
   `CONTEXT.md` blocker B1); planned parser column records the fallback chain.
+
+
+---
+
+## 3. Visual Transcriptions for PNG Evidence (Decision B1/B2)
+
+Manual visual inspection transcription for the 11 PNG evidence files (recorded 2026-10-25 per Decision B1/B2):
+
+| File ID | Source File | Description | Visual Read Transcription |
+|---|---|---|---|
+| `evidence_04` | `evidence/images/account_admin_console_20260926.png` | Admin console | Customer account lookup: status=ACTIVE, email=jonas.berg@outlook.com, system=account_service, resource=account_006. |
+| `evidence_09` | `evidence/images/search_index_inspector_20260901.png` | Search index inspector | Index entry search_001 present for jonas.berg@outlook.com in index customer_directory_v3. |
+| `evidence_14` | `evidence/images/connector_management_console_20260807.png` | Connector management | Connector data_flow_9522 status: ACTIVE, target=analytics_platform, enabled=true. |
+| `evidence_19` | `evidence/images/analytics_profile_view_20260713.png` | Analytics profile view | Profile analytics_9406 audience_cohort=general_shopper, customer_reference=null (anonymized). |
+| `evidence_23` | `evidence/images/customer_export_console_20260618.png` | Customer export console | Export package customer_export_001.zip (export_001) status: download available. |
+| `evidence_28` | `evidence/images/support_ticket_console_20260524.png` | Support ticket console | Support ticket CS-4827 / support_001 attachment delivery_correction_attachment.pdf. |
+| `evidence_32` | `evidence/images/backup_restore_console_20260429.png` | Backup restore console | Archive snapshot backup_3870 restore_eligible=true, deletion_block=false (active restore risk). |
+| `evidence_37` | `evidence/images/security_audit_explorer_20260905.png` | Security audit explorer | Security audit record audit_record_2016 retention_until=2034-09-30T23:59:59Z, verified retained. |
+| `evidence_42` | `evidence/images/deleted_account_reference_20260310.png` | Tombstone reference console | Deleted account tombstone tombstone_9178 name='Kofi Addo', email='addo.kofi@gmail.com' (exposed PII). |
+| `evidence_46` | `evidence/images/object_storage_browser_20260213.png` | Object storage browser | Object storage audit bucket: compliance log verified present. |
+| `evidence_60` | `evidence/images/marketing_profile_console.png` | Marketing profile console | Failover replica out of sync: account_005 active profile for leila.haddad@yahoo.com. |
